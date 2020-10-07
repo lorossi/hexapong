@@ -1,6 +1,10 @@
 let g;
 let font;
-let yOffset, scl;
+let y_offset, scl;
+let paddle_delta;
+
+let status = ["mainmenu", "game", "drawingwinner", "ending", "paused"];
+let currentstatus = "game";
 
 function setup() {
   let canvas = createCanvas(800, 800);
@@ -10,30 +14,38 @@ function setup() {
 
   font = loadFont('../assets/FFFFORWA.TTF');
 
-  yOffset = 0.6;
+  y_offset = 0.6;
   scl = 0.7;
+  paddle_delta = PI / 100;
 }
 
 function draw() {
-  push();
-  translate(width / 2, height * yOffset);
-  scale(scl);
-  translate(-width / 2, -height * yOffset);
+  if (currentstatus == "game") {
+    push();
+    translate(width / 2, height * y_offset);
+    scale(scl);
+    translate(-width / 2, -height * y_offset);
 
-  background(0);
-  g.moveBall();
-  g.checkCollision();
+    g.checkKeys();
 
-  g.drawBall();
-  g.drawPaddles();
+    background(0);
+    g.moveBall();
+    g.checkCollision();
 
-  g.accelerateBall();
+    g.drawBall();
+    g.drawPaddles();
 
-  pop();
+    g.accelerateBall();
+    pop();
 
-  g.drawScore();
+    g.drawScore();
+    g.tick();
 
-  g.tick();
+  } else if (currentstatus == "drawingwinner") {
+    g.drawWinner();
+  } else if (currentstatus == "ending") {
+    g.resetTicks();
+  }
 }
 
 
@@ -44,9 +56,9 @@ class Game {
 
     this.paddleNumber = 3;
     this.ticks = 0;
-    this.maxScore = 3;
+    this.maxScore = 5;
     this.speed = 3;
-    this.acceleration = 0.3;
+    this.acceleration = 0.7;
 
     this.ball = new Ball(width / 100, "#ffffff", this.speed, this.acceleration);
 
@@ -65,6 +77,21 @@ class Game {
         new Paddle(player, width / 5, width / 2, phi + displacement)
       );
     }
+
+  }
+
+  checkKeys() {
+      if (keyIsDown(65)) { // a
+        this.movePaddle(0, -paddle_delta);
+      } else if (keyIsDown(68)) { // d
+        this.movePaddle(0, paddle_delta);
+      }
+
+      if (keyIsDown(74)) { // j
+        this.movePaddle(1, -paddle_delta);
+      } else if (keyIsDown(76)) { // l
+        this.movePaddle(1, paddle_delta);
+      }
 
   }
 
@@ -91,7 +118,10 @@ class Game {
   movePaddle(player, dphi) {
     this.paddles.forEach((p, i) => {
       if (p.player.id == player) {
-        p.dphi = dphi;
+        p.dphi += dphi;
+
+        if (p.dphi > TWO_PI) p.pdhi -= TWO_PI;
+        if (p.dphi < 0) p.pdhi += TWO_PI;
       }
     });
   }
@@ -117,7 +147,6 @@ class Game {
 
   moveBall() {
     this.ball.position.add(this.ball.velocity);
-    //this.ball.velocity.mult(this.speedMult);
   }
 
   accelerateBall() {
@@ -131,22 +160,21 @@ class Game {
 
       this.paddles.forEach((p) => {
         if (p.player.active) {
-        let paddleAngle = p.phi + p.dphi;
-        while (paddleAngle > TWO_PI) paddleAngle -= TWO_PI;
-        while (paddleAngle < 0) paddleAngle += TWO_PI;
+        let paddle_angle = p.phi + p.dphi;
+        while (paddle_angle > TWO_PI) paddle_angle -= TWO_PI;
+        while (paddle_angle < 0) paddle_angle += TWO_PI;
 
-        let ballAngle = this.ball.position.heading();
-        while (ballAngle > TWO_PI) ballAngle -= TWO_PI;
-        while (ballAngle < 0) ballAngle += TWO_PI;
+        let ball_angle = this.ball.position.heading();
+        while (ball_angle > TWO_PI) ball_angle -= TWO_PI;
+        while (ball_angle < 0) ball_angle += TWO_PI;
 
-        let delta = abs(paddleAngle - ballAngle);
+        let delta = abs(paddle_angle - ball_angle);
         while (delta > TWO_PI) delta -= TWO_PI;
         while (delta < 0) delta += TWO_PI;
 
-
         if (delta < p.centerAngle) {
-          let bounceAngle = PI - (ballAngle - paddleAngle);
-          this.ball.velocity.rotate(bounceAngle);
+          let bounce_angle = PI - ball_angle + paddle_angle;
+          this.ball.velocity.rotate(bounce_angle);
 
           this.players.forEach((p, i) => {
             p.active = !p.active;
@@ -167,8 +195,8 @@ class Game {
         if (!p.active) {
           p.score++;
 
-          if (p.score > this.maxScore) {
-            this.drawWinner();
+          if (p.score >= this.maxScore) {
+            currentstatus = "drawingwinner";
           }
         }
         p.active = !p.active;
@@ -200,17 +228,44 @@ class Game {
   }
 
   drawWinner() {
-    let higher_score;
-    if (this.players[0].score > this.players[1].score) higher_score = this.players[0].score;
-    else higher_score = this.players[1].score;
+    currentstatus = "drawingwinner";
+
+    let winner;
+    if (this.players[0].score > this.players[1].score) winner = this.players[0];
+    else winner = this.players[1];
 
     this.players.forEach((p, i) => {
       p.resetScore();
     });
+
+    let font_size = 48;
+
+    push();
+
+    rectMode(CORNER);
+    noStroke();
+    fill(0, 0, 0, 127);
+    rect(0, 0, width, height);
+
+    let winner_text = `Player ${winner.id + 1} wins!`
+    textFont(font);
+    textSize(font_size);
+    fill(255);
+    rectMode(CENTER);
+    textAlign(CENTER);
+    text(winner_text, width/2, height/2, width, 200);
+    textSize(font_size / 2);
+    text("click to continue", width/2, height/2 + 200, width, 200);
+    pop();
+    currentstatus = "ending";
   }
 
   tick() {
     this.ticks++;
+  }
+
+  resetTicks() {
+    this.ticks = 0;
   }
 }
 
@@ -269,22 +324,13 @@ class Player {
 
 
 function mouseMoved() {
-  let dphi;
-  let maxDelta = PI / 4;
+  if (currentstatus == "game") {
+    /// REMOVE
+  }
+}
 
-  let x, y;
-
-  x = mouseX;
-  if (x < 0) x = 0;
-  else if (x > width) x = width;
-
-  y = mouseY;
-  if (y < 0) y = 0;
-  else if (y > width) y = width;
-
-  dphi = map(x, 0, width, -maxDelta, maxDelta);
-  g.movePaddle(0, dphi);
-
-  dphi = map(y, 0, width, -maxDelta, maxDelta);
-  g.movePaddle(1, dphi);
+function mousePressed() {
+  if (currentstatus == "ending") {
+    currentstatus = "game";
+  }
 }
