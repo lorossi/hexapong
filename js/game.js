@@ -4,7 +4,8 @@ let y_offset, scl;
 let paddle_delta;
 
 let status = ["mainmenu", "game", "drawingwinner", "ending", "paused"];
-let currentstatus = "game";
+let current_status = "mainmenu";
+let next_status = "mainmenu";
 
 function setup() {
   let canvas = createCanvas(800, 800);
@@ -20,7 +21,11 @@ function setup() {
 }
 
 function draw() {
-  if (currentstatus == "game") {
+  current_status = next_status;
+
+  if (current_status == "mainmenu") {
+    g.drawMenu();
+  } else if (current_status == "game") {
     push();
     translate(width / 2, height * y_offset);
     scale(scl);
@@ -41,9 +46,9 @@ function draw() {
     g.drawScore();
     g.tick();
 
-  } else if (currentstatus == "drawingwinner") {
+  } else if (current_status == "drawingwinner") {
     g.drawWinner();
-  } else if (currentstatus == "ending") {
+  } else if (current_status == "ending") {
     g.resetTicks();
   }
 }
@@ -196,7 +201,7 @@ class Game {
           p.score++;
 
           if (p.score >= this.maxScore) {
-            currentstatus = "drawingwinner";
+            current_status = "drawingwinner";
           }
         }
         p.active = !p.active;
@@ -205,30 +210,51 @@ class Game {
     }
   }
 
+  drawMenu() {
+    current_status = "mainmenu";
+    let font_size = 64;
+
+    push();
+    background(0);
+    rectMode(CORNER);
+    noStroke();
+
+    textFont(font);
+    textSize(font_size);
+    fill(255);
+    rectMode(CENTER);
+    textAlign(CENTER);
+    text("HEXAPONG", width/2, height/2, width, 200);
+
+    textSize(font_size / 3);
+    text("click to start", width/2, height/2 + 250, width, 200);
+    pop();
+  }
+
   drawScore() {
-    let fontSize = 48;
-    let tx = width / 2 - fontSize / 2 * 2.5 + fontSize / 4;
+    let font_size = 48;
+    let tx = width / 2 - font_size / 2 * 2.5 + font_size / 4;
     let ty = height / 10;
 
     push();
     noStroke();
     textFont(font);
-    textSize(fontSize);
+    textSize(font_size);
 
     fill(this.players[0].color);
     text(this.players[0].score, tx, ty);
 
     fill(255);
-    text(":", tx + fontSize, ty);
+    text(":", tx + font_size, ty);
 
     fill(this.players[1].color);
-    text(this.players[1].score, tx + fontSize * 1.5, ty);
+    text(this.players[1].score, tx + font_size * 1.5, ty);
 
     pop();
   }
 
   drawWinner() {
-    currentstatus = "drawingwinner";
+    current_status = "drawingwinner";
 
     let winner;
     if (this.players[0].score > this.players[1].score) winner = this.players[0];
@@ -257,7 +283,7 @@ class Game {
     textSize(font_size / 2);
     text("click to continue", width/2, height/2 + 200, width, 200);
     pop();
-    currentstatus = "ending";
+    current_status = "ending";
   }
 
   tick() {
@@ -324,13 +350,16 @@ class Player {
 
 
 function mouseMoved() {
-  if (currentstatus == "game") {
+  if (current_status == "game") {
     /// REMOVE
   }
 }
 
 function mousePressed() {
-  if (currentstatus == "ending") {
-    currentstatus = "game";
+  if (current_status == "mainmenu") {
+    next_status = "game";
+  }
+  else if (current_status == "ending") {
+    next_status = "game";
   }
 }
