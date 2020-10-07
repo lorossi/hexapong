@@ -9,3 +9,4 @@ Try it here https://lorossi.github.io/hexapong/
 4. Improve bouncing angle direction **WIP**
 5. Reduce paddles size over time
 6. Add joypad support / custom keys support
+7. Add powerups
