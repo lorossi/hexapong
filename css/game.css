@@ -1,6 +1,25 @@
+@font-face {
+  font-family: FFFFORWA;
+  src: url(../assets/FFFFORWA.ttf);
+}
+
+body {
+  background-color: lightgrey;
+  font-family: FFFFORWA;
+}
+
 .game {
   position: relative;
   width: 800px;
   height: 800px;
-  border: 1px solid black;
+  margin: auto;
+  padding-top: 2vh;
+  padding-bottom: 2vh;
+}
+
+.description {
+  position: relative;
+  text-align: center;
+  width: 800px;
+  margin: auto;
 }
