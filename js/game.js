@@ -12,7 +12,7 @@ function setup() {
 
   g = new Game();
 
-  font = loadFont('FFFFORWA.ttf');
+  font = loadFont('js/FFFFORWA.ttf');
 
   y_offset = 0.6;
   scl = 0.7;
