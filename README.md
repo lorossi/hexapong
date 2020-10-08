@@ -21,3 +21,4 @@ Try it here https://lorossi.github.io/hexapong/
 9. Add AI
 10. Add music
 11. ~~Add countdown before round start~~ **DONE**
+12. Add pause **WIP**
