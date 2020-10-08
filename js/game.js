@@ -72,12 +72,13 @@ function draw() {
 
 class Game {
   constructor() {
-    this.version = "alpha-1.0.1"
+    this.version = "alpha-1.0.2"
     this.seed = random(1000000); // used for randomization
     this.paddles = [];
     this.players = [];
     this.animations = [];
     this.buttons = [];
+    this.colorpalette = ["#ff0000", "#0000ff"]; // red and blue
 
     this.paddleNumber = 3; // number of paddles for each players
     this.ticks = 0; // keeps time
@@ -87,10 +88,9 @@ class Game {
 
     this.ball = new Ball(width / 100, "#ffffff", this.speed, this.acceleration);
 
-    let colors = ["#ff0000", "#0000ff"]; // red and blue
     for (let i = 0; i < 2; i++) {
       this.players.push(
-        new Player(i, colors[i], i == 0, this.paddleNumber)
+        new Player(i, this.colorpalette[i], i == 0, this.paddleNumber)
       );
     }
 
@@ -279,13 +279,13 @@ class Game {
       text = " 1 player";
       id = "1player"
       this.buttons.push(
-        new Button(width * 2/7, 3/4 * height, button_size * 6, button_size * 2.5, text, id, "#ffffffc8", button_size, "#ff0000", "#0000ff", true)
+        new Button(width * 2/7, 3/4 * height, button_size * 6, button_size * 2.5, text, id, "#ffffffc8", button_size, this.colorpalette[0], this.colorpalette[1], true)
       );
 
       text = " 2 players";
       id = "2players"
       this.buttons.push(
-        new Button(width * 5/7, 3/4 * height, button_size * 7, button_size * 2.5, text, id, "#ffffffc8", button_size, "#ff0000", "#ff0000", false)
+        new Button(width * 5/7, 3/4 * height, button_size * 7, button_size * 2.5, text, id, "#ffffffc8", button_size, this.colorpalette[0], this.colorpalette[1], false)
       );
     }
 
