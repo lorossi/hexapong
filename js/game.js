@@ -4,7 +4,7 @@ let y_offset, scl;
 let paddle_delta;
 
 // FSM to control the current game status
-let status = ["mainmenu", "countdown", "game", "drawingwinner", "ending", "paused"]; // list of available statuses
+let status = ["mainmenu", "countdown", "game", "drawingwinner", "paused"]; // list of available statuses
 let current_status;
 let next_status = "mainmenu";
 
@@ -41,8 +41,7 @@ function draw() {
     scale(scl);
     translate(-width / 2, -height * y_offset);
 
-    g.drawBall();
-    g.drawPaddles();
+    g.drawGame();
     g.drawCountdown();
     pop();
   } else if (current_status == "game") {
@@ -53,8 +52,7 @@ function draw() {
     translate(-width / 2, -height * y_offset);
     background(0);
 
-    g.drawBall();
-    g.drawPaddles();
+    g.drawGame();
     pop();
 
     // check if paddle keys are pressed
@@ -73,8 +71,6 @@ function draw() {
 
   } else if (current_status == "drawingwinner") {
     g.drawWinner();
-  } else if (current_status == "ending") {
-    // ...
   }
 
   // tick at every frame to keep track of time
@@ -84,19 +80,20 @@ function draw() {
 
 class Game {
   constructor() {
-    this.version = "alpha-1.0.5"
+    this.version = "alpha-1.0.6"
     this.seed = random(1000000); // used for randomization
     this.paddles = [];
     this.players = [];
     this.animations = [];
     this.buttons = [];
-    this.colorpalette = ["#ff0000", "#0000ff"]; // red and blue
+    this.colorpalette = ["#CC3A38", "#2A63B3"]; // red and blue
 
     this.paddleNumber = 3; // number of paddles for each players
     this.ticks = 0; // keeps time
     this.maxScore = 5; // max score before game over
-    this.speed = 1.5; // ball speed
-    this.acceleration = 0.02; // ball acceleration
+    this.speed = 2; // ball speed
+    this.maxSpeed = 8;
+    this.acceleration = 0.015; // ball acceleration
 
     this.ball = new Ball(width / 100, "#ffffff", this.speed, this.acceleration);
 
@@ -133,7 +130,7 @@ class Game {
 
   }
 
-  drawPaddles() {
+  drawGame() {
     push();
     translate(width / 2, height / 2); // relative to the center of the canvas
 
@@ -150,8 +147,24 @@ class Game {
       pop();
 
     });
-
     pop();
+
+    let fill_color;
+    this.players.forEach((p) => {
+      if (p.active) {
+        fill_color = p.color; // ball color is the same as the active player
+        return;
+      }
+    });
+
+    push();
+    translate(width / 2, height / 2);
+    noStroke();
+    fill(fill_color);
+    translate(this.ball.position.x, this.ball.position.y);
+    circle(0, 0, this.ball.size * 2);
+    pop();
+
 
   }
 
@@ -169,27 +182,8 @@ class Game {
 
   updatePaddles() {
     this.paddles.forEach((p, i) => {
-      p.updatePaddle();
+      p.updatePaddle(this.ticks);
     });
-  }
-
-  drawBall() {
-    let fill_color;
-
-    this.players.forEach((p) => {
-      if (p.active) {
-        fill_color = p.color; // ball color is the same as the active player
-        return;
-      }
-    });
-
-    push();
-    translate(width / 2, height / 2);
-    noStroke();
-    fill(fill_color);
-    translate(this.ball.position.x, this.ball.position.y);
-    circle(0, 0, this.ball.size * 2);
-    pop();
   }
 
   moveBall() {
@@ -197,22 +191,25 @@ class Game {
   }
 
   accelerateBall() {
-    this.ball.accelerate(this.ticks);
+    this.ball.accelerate(this.ticks, this.maxSpeed);
   }
 
   checkCollision() {
     let found = false;
     let distance = this.ball.position.mag() + this.ball.speed + this.ball.size / 2;
 
-    let paddle_distance; // find active paddle distance
+    let active_paddle; // find active paddle distance
     this.paddles.forEach((p, i) => {
       if (p.player.active) {
-          paddle_distance = p.distance;
+          active_paddle = p;
       }
       return;
     });
 
-    if (distance > paddle_distance && distance < paddle_distance + this.paddles[0].pwidth * 2) {
+    let paddle_distance = active_paddle.distance;
+    let paddle_width = active_paddle.pwidth; // add some tolerance
+
+    if (distance > paddle_distance && distance < paddle_distance + paddle_width * 2) {
       this.paddles.forEach((p) => {
         if (p.player.active) {
           let paddle_angle = p.phi + p.dphi;
@@ -229,9 +226,10 @@ class Game {
 
           let next_position = this.ball.position.copy().add(this.ball.velocity); // used to check that the ball is moving away from the target
 
-          if (delta < p.centerAngle && this.ball.position.mag() < next_position.mag()) {
+          if (delta < p.centerAngle && this.ball.position.mag() <= next_position.mag()) {
             // the ball is inside the paddle
-            let bounce_angle = PI - ball_angle + paddle_angle;
+
+            let bounce_angle = - (ball_angle - paddle_angle) * 2 + PI; // HONESTLY I DON'T KNOW WHY THIS WORKS BUT IT DOES
             this.ball.velocity.rotate(bounce_angle);
 
             this.players.forEach((p, i) => {
@@ -301,13 +299,13 @@ class Game {
       text = "1 player";
       id = "1player"
       this.buttons.push(
-        new Button(width * 2/7, 3/4 * height, button_size * 6, button_size * 2.5, text, id, "#ffffffc8", button_size, this.colorpalette[0], this.colorpalette[1], true)
+        new Button(width * 2/7, 3/4 * height, button_size * 6, button_size * 2.5, text, id, "#ffffffc8", button_size, this.colorpalette[0], this.colorpalette[1], false)
       );
 
       text = "2 players";
       id = "2players"
       this.buttons.push(
-        new Button(width * 5/7, 3/4 * height, button_size * 7, button_size * 2.5, text, id, "#ffffffc8", button_size, this.colorpalette[0], this.colorpalette[1], false)
+        new Button(width * 5/7, 3/4 * height, button_size * 7, button_size * 2.5, text, id, "#ffffffc8", button_size, this.colorpalette[0], this.colorpalette[1], true)
       );
     }
 
@@ -330,6 +328,7 @@ class Game {
     text("HEXAPONG", 0, 0, width, 200);
     pop();
 
+    pop();
     // run animations
     this.animations.forEach((a, i) => {
       a.show();
@@ -341,8 +340,6 @@ class Game {
       b.show();
       b.animate();
     });
-
-    pop();
   }
 
   drawCountdown() {
@@ -491,8 +488,8 @@ class Ball {
     this.position.mult(0);
   }
 
-  accelerate(ticks) {
-    this.velocity.setMag(this.speed + this.acceleration * ticks);
+  accelerate(ticks, maxSpeed) {
+    this.velocity.setMag(this.speed + this.acceleration * ticks).limit(maxSpeed);
   }
 }
 
@@ -500,7 +497,7 @@ class Paddle {
   constructor(player, height, width, distance, phi) {
     this.player = player;
     this.originalheight = height;
-    this.minheight = height / 15;
+    this.minheight = height / 10;
     this.pheight = height; // paddle height
     this.pwidth = width; // paddle width
     this.distance = distance;
@@ -509,11 +506,11 @@ class Paddle {
 
     this.dphi = 0; // angle determined by player movement
     this.centerAngle = this.calculateCenterAngle();
-    this.dheight = this.pheight / (60 * 30);
+    this.dheight = this.pheight / (60 * 90);
   }
 
-  updatePaddle() {
-    this.pheight -= this.dheight;
+  updatePaddle(ticks) {
+    this.pheight = this.originalheight - this.dheight * ticks;
     if (this.pheight < this.minheight) this.pheight = this.minheight;
     this.centerAngle = this.calculateCenterAngle();
   }
@@ -650,10 +647,7 @@ class Button {
     if (x > this.position.x - this.bwidth / 2 && x < this.position.x + this.bwidth / 2 && y > this.position.y - this.bheight / 2 && y < this.position.y + this.bheight / 2) {
       this.pressed = true;
     }
-
   }
-
-
 }
 
 
@@ -667,7 +661,7 @@ function mousePressed() {
   if (current_status == "mainmenu") {
     g.buttons.forEach((b, i) => {
       if (b.pressed) {
-        if (b.id == "1player") {
+        if (b.id == "2players") {
           next_status = "countdown";
         }
       }
