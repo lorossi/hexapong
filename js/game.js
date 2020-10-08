@@ -4,7 +4,7 @@ let y_offset, scl;
 let paddle_delta;
 
 // FSM to control the current game status
-let status = ["mainmenu", "game", "drawingwinner", "ending", "paused"]; // list of available statuses
+let status = ["mainmenu", "countdown", "game", "drawingwinner", "ending", "paused"]; // list of available statuses
 let current_status;
 let next_status = "mainmenu";
 
@@ -22,10 +22,16 @@ function setup() {
 }
 
 function draw() {
-  current_status = next_status; // update status
+  if (current_status != next_status) {
+    current_status = next_status; // update status
+    g.resetTicks();
+    g.resetAnimations();
+    g.resetButtons();
+  }
 
   if (current_status == "mainmenu") {
     g.drawMenu();
+    g.drawVersion();
   } else if (current_status == "game") {
     // SCALING
     push();
@@ -35,7 +41,6 @@ function draw() {
     background(0);
     g.drawBall();
     g.drawPaddles();
-    g.drawVersion();
     pop();
 
     // check if paddle keys are pressed
@@ -51,22 +56,28 @@ function draw() {
 
     // draw player scores
     g.drawScore();
-    // tick to keep track of time
-    g.tick();
 
   } else if (current_status == "drawingwinner") {
     g.drawWinner();
   } else if (current_status == "ending") {
-    g.resetTicks();
+    //g.resetTicks();
   }
+
+
+  // tick to keep track of time
+  g.tick();
+
 }
 
 
 class Game {
   constructor() {
-    this.version = "alpha-1.0"
+    this.version = "alpha-1.0.1"
+    this.seed = random(1000000); // used for randomization
     this.paddles = [];
     this.players = [];
+    this.animations = [];
+    this.buttons = [];
 
     this.paddleNumber = 3; // number of paddles for each players
     this.ticks = 0; // keeps time
@@ -238,20 +249,48 @@ class Game {
   }
 
   drawVersion() {
-    let font_size = 16;
+    let text_size = 16;
+
     push();
     textFont(font);
-    textSize(font_size);
+    textSize(text_size);
     fill(255, 50);
     rectMode(CORNER);
     textAlign(LEFT);
-    text(this.version, font_size, font_size);
+    text(this.version, text_size, text_size, 40, 40);
     pop();
   }
 
   drawMenu() {
     next_status = "mainmenu";
-    let font_size = 64;
+    let text_size = 64;
+    let button_size = text_size / 2;
+
+    if (this.animations.length == 0) { // no animations, it's the first iteration of the menu
+      for (let i = 0; i < 50; i++) {
+        this.animations.push(
+          new Animation("ball", 20 * 60, this.seed)
+        );
+      }
+    }
+
+    if (this.buttons.length == 0) {
+      let text, id;
+      text = " 1 player";
+      id = "1player"
+      this.buttons.push(
+        new Button(width * 2/7, 3/4 * height, button_size * 6, button_size * 2.5, text, id, "#ffffffc8", button_size, "#ff0000", "#0000ff", true)
+      );
+
+      text = " 2 players";
+      id = "2players"
+      this.buttons.push(
+        new Button(width * 5/7, 3/4 * height, button_size * 7, button_size * 2.5, text, id, "#ffffffc8", button_size, "#ff0000", "#ff0000", false)
+      );
+    }
+
+    let text_rotation = sin(2 * PI * 0.005 * this.ticks + this.seed) * PI / 20;
+    let text_zoom = map(sin(2 * PI * 0.007 * this.ticks + this.seed * 4), -1, 1, 0.7, 1.3);
 
     push();
     background(0);
@@ -259,35 +298,53 @@ class Game {
     noStroke();
 
     textFont(font);
-    textSize(font_size);
-    fill(255);
+    fill(255, 200);
     rectMode(CENTER);
     textAlign(CENTER);
-    text("HEXAPONG", width/2, height/2, width, 200);
 
-    textSize(font_size / 3);
-    text("click to start", width/2, height/2 + 250, width, 200);
+    push();
+    textSize(text_size);
+    translate(width/2, height/2);
+    rotate(text_rotation);
+    scale(text_zoom);
+    text("HEXAPONG", 0, 0, width, 200);
+    pop();
+
+    // run animations
+    this.animations.forEach((a, i) => {
+      a.show();
+      a.update();
+    });
+
+    // show buttons
+    this.buttons.forEach((b, i) => {
+      b.show();
+      b.animate();
+    });
+
     pop();
   }
 
   drawScore() {
-    let font_size = 48;
-    let tx = width / 2 - font_size / 2 * 2.5 + font_size / 4;
+    let text_size = 48;
+    let tx = width / 2 - text_size / 2 * 2.5 + text_size / 4;
     let ty = height / 10;
 
     push();
     noStroke();
     textFont(font);
-    textSize(font_size);
+    textSize(text_size);
+    textAlign(CENTER);
 
     fill(this.players[0].color);
     text(this.players[0].score, tx, ty);
 
     fill(255);
-    text(":", tx + font_size, ty);
+    text(":", tx + text_size * 3 / 4, ty);
 
+    textSize(text_size);
     fill(this.players[1].color);
-    text(this.players[1].score, tx + font_size * 1.5, ty);
+    text(this.players[1].score, tx + text_size * 1.5, ty);
 
     pop();
   }
@@ -301,7 +358,7 @@ class Game {
       p.resetScore();
     });
 
-    let font_size = 48;
+    let text_size = 48;
 
     push();
 
@@ -312,12 +369,12 @@ class Game {
 
     let winner_text = `Player ${winner.id + 1} wins!`
     textFont(font);
-    textSize(font_size);
+    textSize(text_size);
     fill(255);
     rectMode(CENTER);
     textAlign(CENTER);
     text(winner_text, width/2, height/2, width, 200);
-    textSize(font_size / 2);
+    textSize(text_size / 2);
     text("click to continue", width/2, height/2 + 200, width, 200);
     pop();
 
@@ -330,6 +387,14 @@ class Game {
 
   resetTicks() {
     this.ticks = 0;
+  }
+
+  resetAnimations() {
+    this.animations = [];
+  }
+
+  resetButtons() {
+    this.buttons = [];
   }
 }
 
@@ -362,6 +427,7 @@ class Paddle {
   constructor(player, height, width, distance, phi) {
     this.player = player;
     this.originalheight = height;
+    this.minheight = height / 15;
     this.pheight = height; // paddle height
     this.pwidth = width; // paddle width
     this.distance = distance;
@@ -375,6 +441,7 @@ class Paddle {
 
   updatePaddle() {
     this.pheight -= this.dheight;
+    if (this.pheight < this.minheight) this.pheight = this.minheight;
     this.centerAngle = this.calculateCenterAngle();
   }
 
@@ -403,11 +470,138 @@ class Player {
   }
 }
 
+class Animation {
+  constructor(type, duration, seed, color, x, y) {
+    this.type = type;
+    this.duration = duration;
+    this.seed = seed;
+
+    if (!x) {
+      this.position = createVector(random(width), random(height))
+    } else {
+      this.position = createVector(x, y);
+    }
+
+    if (!color) {
+      this.color = "#ffffff64"; // 255, 100
+    } else {
+      this.color = color;
+    }
+
+    if (type = "ball") {
+      this.z = random(0, 100);
+      this.size = map(this.z, 0, 100, width / 200, width / 100);
+      this.speed = map(this.z, 0, 100, 0.5, 5);
+      this.velocity = createVector(this.speed, 0).rotate(this.seed);
+    }
+  }
+
+  show() {
+    push();
+    if (this.type == "ball") {
+        translate(this.position.x, this.position.y);
+        noStroke();
+        fill(this.color);
+        circle(0, 0, this.size);
+    }
+    pop();
+  }
+
+  update() {
+    if (this.type == "ball") {
+      this.position.add(this.velocity);
+
+      if (this.position.x > width) this.position.x -= width;
+      else if (this.position.x < 0) this.position.x += width;
+
+      if (this.position.y > height) this.position.y -= height;
+      else if (this.position.y < 0) this.position.y += height;
+    }
+  }
+}
+
+
+class Button {
+  constructor(x, y, w, h, text_string, id, text_color, text_size, background_color, hover_color, active) {
+    this.position = createVector(x, y); // the position is relative to the center
+    this.bwidth = w;
+    this.bheight = h;
+    this.id = id;
+    this.text_string = text_string;
+    this.text_color = text_color;
+    this.text_size = text_size;
+    this.background_color = background_color;
+    this.hover_color = hover_color;
+    this.active = active;
+
+    this.current_color = background_color;
+    this.inactive_color = "#808080";
+    this.pressed = false;
+  }
+
+  show() {
+    push();
+    translate(this.position.x, this.position.y);
+    noStroke();
+
+    if (this.active) {
+      fill(this.current_color);
+    } else {
+      fill(this.inactive_color);
+    }
+
+    rectMode(CENTER);
+    rect(0, 0, this.bwidth, this.bheight);
+
+    textSize(this.text_size);
+    textAlign(CENTER, CENTER);
+    textFont(font);
+    fill(this.text_color);
+    text(this.text_string, 0, 0, this.bwidth, this.bheight);
+    pop();
+  }
+
+  animate() {
+    if (!this.active) return;
+
+    if (mouseX > this.position.x - this.bwidth / 2 && mouseX < this.position.x + this.bwidth / 2 && mouseY > this.position.y - this.bheight / 2 && mouseY < this.position.y + this.bheight / 2) {
+      this.current_color = this.hover_color;
+    } else {
+      this.current_color = this.background_color;
+    }
+  }
+
+  checkClicks(x, y) {
+    if (!this.active) return;
+
+    if (x > this.position.x - this.bwidth / 2 && x < this.position.x + this.bwidth / 2 && y > this.position.y - this.bheight / 2 && y < this.position.y + this.bheight / 2) {
+      this.pressed = true;
+    }
+
+  }
+
+
+}
+
+
 function mousePressed() {
+  if (g.buttons.length > 0) { // check all the buttons
+    g.buttons.forEach((b, i) => {
+      b.checkClicks(mouseX, mouseY);
+    });
+  }
+
   if (current_status == "mainmenu") {
-    next_status = "game";
+    g.buttons.forEach((b, i) => {
+      if (b.pressed) {
+        if (b.id == "1player") {
+          next_status = "game";
+        }
+      }
+    });
   }
   else if (current_status == "ending") {
     next_status = "game";
   }
+
 }
