@@ -8,7 +8,7 @@ Try it here https://lorossi.github.io/hexapong/
 2. Add animations **WIP**
 3. Add splash screens
     1. ~~Add start screen~~ **DONE**
-    2. Add end screen
+    2. ~~Add end screen~~ **DONE**
 4. ~~Improve bouncing angle direction~~ **DONE**
 5. ~~Reduce paddles size over time~~ **DONE**
 6. Add joypad support / custom keys support
