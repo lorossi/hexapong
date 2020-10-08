@@ -4,7 +4,7 @@ let y_offset, scl;
 let paddle_delta;
 
 let status = ["mainmenu", "game", "drawingwinner", "ending", "paused"];
-let current_status = "mainmenu";
+let current_status;
 let next_status = "mainmenu";
 
 function setup() {
