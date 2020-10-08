@@ -32,21 +32,22 @@ function draw() {
     translate(width / 2, height * y_offset);
     scale(scl);
     translate(-width / 2, -height * y_offset);
+    background(0);
+    g.drawBall();
+    g.drawPaddles();
+    g.drawVersion();
+    pop();
 
     // check if paddle keys are pressed
     g.checkKeys();
-
-    background(0);
     g.moveBall();
 
     // check ball collision with paddles
     g.checkCollision();
-
-    g.drawBall();
-    g.drawPaddles();
-
     g.accelerateBall();
-    pop();
+
+    // shrink paddles
+    g.updatePaddles();
 
     // draw player scores
     g.drawScore();
@@ -63,14 +64,15 @@ function draw() {
 
 class Game {
   constructor() {
+    this.version = "alpha-1.0"
     this.paddles = [];
     this.players = [];
 
     this.paddleNumber = 3; // number of paddles for each players
     this.ticks = 0; // keeps time
     this.maxScore = 5; // max score before game over
-    this.speed = 3; // ball speed
-    this.acceleration = 0.7; // ball acceleration
+    this.speed = 4; // ball speed
+    this.acceleration = 0.3; // ball acceleration
 
     this.ball = new Ball(width / 100, "#ffffff", this.speed, this.acceleration);
 
@@ -86,7 +88,7 @@ class Game {
       let phi = (i % 2) * PI; // either 0 or PI
       let displacement = TWO_PI / (this.paddleNumber) * Math.floor(i / 2); // paddles angular spacing
       this.paddles.push(
-        new Paddle(player, width / 5, width / 2, phi + displacement)
+        new Paddle(player, width * .4, width * .013, width / 2, phi + displacement)
       );
     }
 
@@ -141,6 +143,13 @@ class Game {
     });
   }
 
+  updatePaddles() {
+    this.paddles.forEach((p, i) => {
+      p.updatePaddle();
+    });
+
+  }
+
   drawBall() {
     let fill_color;
 
@@ -173,7 +182,6 @@ class Game {
     let distance = this.ball.position.mag() + this.ball.speed + this.ball.size / 2;
 
     if (distance > this.paddles[0].distance && distance < this.paddles[0].distance + this.paddles[0].pwidth * 2) {
-
       this.paddles.forEach((p) => {
         if (p.player.active) {
           let paddle_angle = p.phi + p.dphi;
@@ -188,7 +196,10 @@ class Game {
           while (delta > TWO_PI) delta -= TWO_PI;
           while (delta < 0) delta += TWO_PI;
 
-          if (delta < p.centerAngle) {
+          let next_position = this.ball.position.copy().add(this.ball.velocity); // used to check that the ball is moving away from the target
+
+          if (delta < p.centerAngle && this.ball.position.mag() < next_position.mag()) {
+            // the ball is inside the paddle
             let bounce_angle = PI - ball_angle + paddle_angle;
             this.ball.velocity.rotate(bounce_angle);
 
@@ -213,17 +224,33 @@ class Game {
           p.score++;
 
           if (p.score >= this.maxScore) { // if his score is higher than the threshold, he won
-            current_status = "drawingwinner"; // chang status to score screen
+            next_status = "drawingwinner"; // chang status to score screen
           }
         }
         p.active = !p.active; //switch activity status
       });
 
+      this.paddles.forEach((p) => {
+        p.resetPaddles();
+      });
+
     }
   }
 
+  drawVersion() {
+    let font_size = 16;
+    push();
+    textFont(font);
+    textSize(font_size);
+    fill(255, 50);
+    rectMode(CORNER);
+    textAlign(LEFT);
+    text(this.version, font_size, font_size);
+    pop();
+  }
+
   drawMenu() {
-    current_status = "mainmenu";
+    next_status = "mainmenu";
     let font_size = 64;
 
     push();
@@ -266,8 +293,6 @@ class Game {
   }
 
   drawWinner() {
-    current_status = "drawingwinner";
-
     let winner;
     if (this.players[0].score > this.players[1].score) winner = this.players[0];
     else winner = this.players[1];
@@ -295,7 +320,8 @@ class Game {
     textSize(font_size / 2);
     text("click to continue", width/2, height/2 + 200, width, 200);
     pop();
-    current_status = "ending";
+
+    next_status = "ending";
   }
 
   tick() {
@@ -333,15 +359,32 @@ class Ball {
 }
 
 class Paddle {
-  constructor(player, size, distance, phi) {
+  constructor(player, height, width, distance, phi) {
     this.player = player;
-    this.pheight = size; // paddle height
-    this.pwidth = size / 20; // paddle width
+    this.originalheight = height;
+    this.pheight = height; // paddle height
+    this.pwidth = width; // paddle width
     this.distance = distance;
     this.phi = phi;
 
-    this.centerAngle = asin(this.pheight / (this.distance * 2)); // teorema della corda
+
     this.dphi = 0; // angle determined by player movement
+    this.centerAngle = this.calculateCenterAngle();
+    this.dheight = this.pheight / (60 * 30);
+  }
+
+  updatePaddle() {
+    this.pheight -= this.dheight;
+    this.centerAngle = this.calculateCenterAngle();
+  }
+
+  resetPaddles() {
+    this.pheight = this.originalheight;
+    this.centerAngle = this.calculateCenterAngle();
+  }
+
+  calculateCenterAngle() {
+    return asin(this.pheight / (this.distance * 2)); // teorema della corda
   }
 }
 
