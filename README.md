@@ -10,3 +10,5 @@ Try it here https://lorossi.github.io/hexapong/
 5. Reduce paddles size over time
 6. Add joypad support / custom keys support
 7. Add powerups
+8. Add touch controls
+9. Add AI
