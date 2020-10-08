@@ -32,7 +32,19 @@ function draw() {
     g.drawMenu();
     g.drawVersion();
   } else if (current_status == "countdown") {
-    next_status = "game"; // IMPLEMENT A countdown
+    background(0);
+
+    g.drawScore();
+
+    push();
+    translate(width / 2, height * y_offset);
+    scale(scl);
+    translate(-width / 2, -height * y_offset);
+
+    g.drawBall();
+    g.drawPaddles();
+    g.drawCountdown();
+    pop();
   } else if (current_status == "game") {
     // SCALING
     push();
@@ -40,6 +52,7 @@ function draw() {
     scale(scl);
     translate(-width / 2, -height * y_offset);
     background(0);
+
     g.drawBall();
     g.drawPaddles();
     pop();
@@ -82,8 +95,8 @@ class Game {
     this.paddleNumber = 3; // number of paddles for each players
     this.ticks = 0; // keeps time
     this.maxScore = 5; // max score before game over
-    this.speed = 3; // ball speed
-    this.acceleration = 0.08; // ball acceleration
+    this.speed = 1.5; // ball speed
+    this.acceleration = 0.02; // ball acceleration
 
     this.ball = new Ball(width / 100, "#ffffff", this.speed, this.acceleration);
 
@@ -251,7 +264,9 @@ class Game {
         p.resetPaddles();
       });
 
-      next_status = "countdown"; // ball countdown
+      if (next_status != "drawingwinner") { // if the winner has not been chosen
+        next_status = "countdown"; // ball countdown
+      }
     }
   }
 
@@ -301,9 +316,7 @@ class Game {
 
     push();
     background(0);
-    rectMode(CORNER);
     noStroke();
-
     textFont(font);
     fill(255, 200);
     rectMode(CENTER);
@@ -329,6 +342,27 @@ class Game {
       b.animate();
     });
 
+    pop();
+  }
+
+  drawCountdown() {
+    let seconds = 3 - Math.floor(g.ticks / 30);
+    let text_size = 96;
+
+    if (seconds == 0) {
+      next_status = "game";
+      return;
+    }
+
+    push();
+    noStroke();
+    textFont(font);
+    textSize(text_size);
+    fill(255, 200);
+    rectMode(CENTER);
+    textAlign(CENTER, CENTER);
+    translate(width/2, height/2);
+    text(seconds, 0, 0);
     pop();
   }
 
@@ -634,7 +668,7 @@ function mousePressed() {
     g.buttons.forEach((b, i) => {
       if (b.pressed) {
         if (b.id == "1player") {
-          next_status = "game";
+          next_status = "countdown";
         }
       }
     });
