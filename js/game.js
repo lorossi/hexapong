@@ -12,13 +12,12 @@ function setup() {
   let canvas = createCanvas(800, 800);
   canvas.parent('gamecontainer');
 
-  g = new Game();
-
   font = loadFont('js/FFFFORWA.ttf');
-
   y_offset = 0.6; // vertical game offset
   scl = 0.7; // game drawing scale
   paddle_delta = PI / 100; // paddle movement when the button is pressed
+
+  g = new Game();
 }
 
 function draw() {
@@ -32,6 +31,8 @@ function draw() {
   if (current_status == "mainmenu") {
     g.drawMenu();
     g.drawVersion();
+  } else if (current_status == "countdown") {
+    next_status = "game"; // IMPLEMENT A countdown
   } else if (current_status == "game") {
     // SCALING
     push();
@@ -60,19 +61,17 @@ function draw() {
   } else if (current_status == "drawingwinner") {
     g.drawWinner();
   } else if (current_status == "ending") {
-    //g.resetTicks();
+    // ...
   }
 
-
-  // tick to keep track of time
+  // tick at every frame to keep track of time
   g.tick();
-
 }
 
 
 class Game {
   constructor() {
-    this.version = "alpha-1.0.2"
+    this.version = "alpha-1.0.3"
     this.seed = random(1000000); // used for randomization
     this.paddles = [];
     this.players = [];
@@ -83,8 +82,8 @@ class Game {
     this.paddleNumber = 3; // number of paddles for each players
     this.ticks = 0; // keeps time
     this.maxScore = 5; // max score before game over
-    this.speed = 4; // ball speed
-    this.acceleration = 0.3; // ball acceleration
+    this.speed = 3; // ball speed
+    this.acceleration = 0.08; // ball acceleration
 
     this.ball = new Ball(width / 100, "#ffffff", this.speed, this.acceleration);
 
@@ -98,8 +97,9 @@ class Game {
       let player = this.players[i % 2]; // either 0 or 1
       let phi = (i % 2) * PI; // either 0 or PI
       let displacement = TWO_PI / (this.paddleNumber) * Math.floor(i / 2); // paddles angular spacing
+      let distance = width / 2 * (1 - .05 * (i % 2)); // either .5 or .4
       this.paddles.push(
-        new Paddle(player, width * .4, width * .013, width / 2, phi + displacement)
+        new Paddle(player, width * .4, width * .013, distance, phi + displacement)
       );
     }
 
@@ -158,7 +158,6 @@ class Game {
     this.paddles.forEach((p, i) => {
       p.updatePaddle();
     });
-
   }
 
   drawBall() {
@@ -185,14 +184,22 @@ class Game {
   }
 
   accelerateBall() {
-    this.ball.accelerate();
+    this.ball.accelerate(this.ticks);
   }
 
   checkCollision() {
     let found = false;
     let distance = this.ball.position.mag() + this.ball.speed + this.ball.size / 2;
 
-    if (distance > this.paddles[0].distance && distance < this.paddles[0].distance + this.paddles[0].pwidth * 2) {
+    let paddle_distance; // find active paddle distance
+    this.paddles.forEach((p, i) => {
+      if (p.player.active) {
+          paddle_distance = p.distance;
+      }
+      return;
+    });
+
+    if (distance > paddle_distance && distance < paddle_distance + this.paddles[0].pwidth * 2) {
       this.paddles.forEach((p) => {
         if (p.player.active) {
           let paddle_angle = p.phi + p.dphi;
@@ -217,7 +224,6 @@ class Game {
             this.players.forEach((p, i) => {
               p.active = !p.active; // switch active players
             });
-
             found = true; // the ball has bounced
             return;
           }
@@ -225,7 +231,7 @@ class Game {
       });
     }
 
-    if (!found && distance  > sqrt(2) * this.paddles[0].distance) {
+    if (!found && distance  > sqrt(2) * paddle_distance * (1 / scl)) {
       // the ball is now too far
       this.ball.resetPosition(); // reset ball position
       this.ball.resetVelocity(); // reset ball velocity
@@ -245,6 +251,7 @@ class Game {
         p.resetPaddles();
       });
 
+      next_status = "countdown"; // ball countdown
     }
   }
 
@@ -264,7 +271,7 @@ class Game {
   drawMenu() {
     next_status = "mainmenu";
     let text_size = 64;
-    let button_size = text_size / 2;
+    let button_size = 32;
 
     if (this.animations.length == 0) { // no animations, it's the first iteration of the menu
       for (let i = 0; i < 50; i++) {
@@ -276,13 +283,13 @@ class Game {
 
     if (this.buttons.length == 0) {
       let text, id;
-      text = " 1 player";
+      text = "1 player";
       id = "1player"
       this.buttons.push(
         new Button(width * 2/7, 3/4 * height, button_size * 6, button_size * 2.5, text, id, "#ffffffc8", button_size, this.colorpalette[0], this.colorpalette[1], true)
       );
 
-      text = " 2 players";
+      text = "2 players";
       id = "2players"
       this.buttons.push(
         new Button(width * 5/7, 3/4 * height, button_size * 7, button_size * 2.5, text, id, "#ffffffc8", button_size, this.colorpalette[0], this.colorpalette[1], false)
@@ -304,7 +311,7 @@ class Game {
 
     push();
     textSize(text_size);
-    translate(width/2, height/2);
+    translate(width/2, height/2 * .85);
     rotate(text_rotation);
     scale(text_zoom);
     text("HEXAPONG", 0, 0, width, 200);
@@ -354,11 +361,35 @@ class Game {
     if (this.players[0].score > this.players[1].score) winner = this.players[0];
     else winner = this.players[1];
 
+    let text_size = 64;
+    let button_size = 32;
+
     this.players.forEach((p, i) => {
       p.resetScore();
     });
 
-    let text_size = 48;
+    if (this.animations.length == 0) { // no animations, it's the first iteration of the menu
+      for (let i = 0; i < 50; i++) {
+        this.animations.push(
+          new Animation("ball", 20 * 60, this.seed)
+        );
+      }
+    }
+
+    if (this.buttons.length == 0) {
+      let text, id;
+      text = "play again";
+      id = "game";
+      this.buttons.push(
+        new Button(width * 2/7, 3/4 * height, button_size * 8, button_size * 2.5, text, id, "#ffffffc8", button_size, this.colorpalette[0], this.colorpalette[1], true)
+      );
+
+      text = "main menu";
+      id = "mainmenu";
+      this.buttons.push(
+        new Button(width * 5/7, 3/4 * height, button_size * 8, button_size * 2.5, text, id, "#ffffffc8", button_size, this.colorpalette[0], this.colorpalette[1], true)
+      );
+    }
 
     push();
 
@@ -374,11 +405,20 @@ class Game {
     rectMode(CENTER);
     textAlign(CENTER);
     text(winner_text, width/2, height/2, width, 200);
-    textSize(text_size / 2);
-    text("click to continue", width/2, height/2 + 200, width, 200);
+
     pop();
 
-    next_status = "ending";
+    // run animations
+    this.animations.forEach((a, i) => {
+      a.show();
+      a.update();
+    });
+
+    // show buttons
+    this.buttons.forEach((b, i) => {
+      b.show();
+      b.animate();
+    });
   }
 
   tick() {
@@ -406,7 +446,7 @@ class Ball {
 
     this.position = createVector(0, 0);
     this.velocity = createVector(this.speed, 0).rotate(random(TWO_PI));
-    this.acceleration = createVector(acceleration, 0);
+    this.acceleration = acceleration;
   }
 
   resetVelocity() {
@@ -417,9 +457,8 @@ class Ball {
     this.position.mult(0);
   }
 
-  accelerate() {
-    this.acceleration.rotate(this.velocity.heading());
-    this.velocity.add(this.acceleration);
+  accelerate(ticks) {
+    this.velocity.setMag(this.speed + this.acceleration * ticks);
   }
 }
 
@@ -527,7 +566,7 @@ class Button {
     this.bwidth = w;
     this.bheight = h;
     this.id = id;
-    this.text_string = text_string;
+    this.text_string = " " + text_string;
     this.text_color = text_color;
     this.text_size = text_size;
     this.background_color = background_color;
@@ -600,8 +639,16 @@ function mousePressed() {
       }
     });
   }
-  else if (current_status == "ending") {
-    next_status = "game";
+  else if (current_status == "drawingwinner") {
+    g.buttons.forEach((b, i) => {
+      if (b.pressed) {
+        if (b.id == "game") {
+          next_status = "game";
+        } else if (b.id == "mainmenu") {
+          next_status = "mainmenu";
+        }
+      }
+    });
   }
 
 }
