@@ -84,7 +84,7 @@ function draw() {
 
 class Game {
   constructor() {
-    this.version = "alpha-1.0.3"
+    this.version = "alpha-1.0.5"
     this.seed = random(1000000); // used for randomization
     this.paddles = [];
     this.players = [];
