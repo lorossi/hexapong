@@ -19,6 +19,6 @@ Try it here https://lorossi.github.io/hexapong/
     4. Rotate in one direction only
 8. Add touch controls
 9. Add AI
-10. Add music
+10. Add music **WIP**
 11. ~~Add countdown before round start~~ **DONE**
 12. Add pause **WIP**

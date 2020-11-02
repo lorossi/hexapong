@@ -1,4 +1,4 @@
-let g;
+let g; // game object
 let font;
 let y_offset, scl;
 let paddle_delta;
@@ -12,7 +12,7 @@ function setup() {
   let canvas = createCanvas(800, 800);
   canvas.parent('gamecontainer');
 
-  font = loadFont('js/FFFFORWA.ttf');
+  font = loadFont('js/assets/fonts/FFFFORWA.ttf');
   y_offset = 0.6; // vertical game offset
   scl = 0.7; // game drawing scale
   paddle_delta = PI / 100; // paddle movement when the button is pressed
@@ -21,6 +21,13 @@ function setup() {
 }
 
 function draw() {
+  background(0);
+  // run animations
+  g.animations.forEach((a, i) => {
+    a.show();
+    a.update();
+  });
+
   if (current_status != next_status) {
     current_status = next_status; // update status
     g.resetTicks();
@@ -32,8 +39,6 @@ function draw() {
     g.drawMenu();
     g.drawVersion();
   } else if (current_status == "countdown") {
-    background(0);
-
     g.drawScore();
 
     push();
@@ -50,7 +55,6 @@ function draw() {
     translate(width / 2, height * y_offset);
     scale(scl);
     translate(-width / 2, -height * y_offset);
-    background(0);
 
     g.drawGame();
     pop();
@@ -73,6 +77,17 @@ function draw() {
     g.drawWinner();
   }
 
+  // show buttons
+  g.buttons.forEach((b, i) => {
+    b.show();
+    b.animate();
+  });
+
+  // play sounds
+  if (g.sound.idle) {
+    g.sound.play();
+  }
+
   // tick at every frame to keep track of time
   g.tick();
 }
@@ -80,7 +95,7 @@ function draw() {
 
 class Game {
   constructor() {
-    this.version = "alpha-1.0.6"
+    this.version = "alpha-1.1"
     this.seed = random(1000000); // used for randomization
     this.paddles = [];
     this.players = [];
@@ -93,7 +108,7 @@ class Game {
     this.maxScore = 5; // max score before game over
     this.speed = 2; // ball speed
     this.maxSpeed = 8;
-    this.acceleration = 0.015; // ball acceleration
+    this.acceleration = 0.005; // ball acceleration
 
     this.ball = new Ball(width / 100, "#ffffff", this.speed, this.acceleration);
 
@@ -112,6 +127,8 @@ class Game {
         new Paddle(player, width * .4, width * .013, distance, phi + displacement)
       );
     }
+
+    this.sound = new Sound();
 
   }
 
@@ -228,7 +245,7 @@ class Game {
 
           if (delta < p.centerAngle && this.ball.position.mag() <= next_position.mag()) {
             // the ball is inside the paddle
-
+            // it's time to bounce
             let bounce_angle = - (ball_angle - paddle_angle) * 2 + PI; // HONESTLY I DON'T KNOW WHY THIS WORKS BUT IT DOES
             this.ball.velocity.rotate(bounce_angle);
 
@@ -236,6 +253,25 @@ class Game {
               p.active = !p.active; // switch active players
             });
             found = true; // the ball has bounced
+
+            let ax, ay; // active paddle x and y
+            ax = this.ball.position.x;
+            ay = this.ball.position.y;
+
+            let params = {
+              "type": "circle",
+              "transform": true,
+              "duration": 10 * 60,
+              "seed": this.seed,
+              "color": p.player.color,
+              "x": ax,
+              "y": ay
+            }
+
+            this.animations.push(
+              new Animation(params)
+            );
+
             return;
           }
       }
@@ -288,8 +324,15 @@ class Game {
 
     if (this.animations.length == 0) { // no animations, it's the first iteration of the menu
       for (let i = 0; i < 50; i++) {
+
+        let params = {
+          "type": "ball",
+          "duration": 20 * 60,
+          "seed": this.seed,
+        }
+
         this.animations.push(
-          new Animation("ball", 20 * 60, this.seed)
+          new Animation(params)
         );
       }
     }
@@ -313,7 +356,6 @@ class Game {
     let text_zoom = map(sin(2 * PI * 0.007 * this.ticks + this.seed * 4), -1, 1, 0.7, 1.3);
 
     push();
-    background(0);
     noStroke();
     textFont(font);
     fill(255, 200);
@@ -329,21 +371,10 @@ class Game {
     pop();
 
     pop();
-    // run animations
-    this.animations.forEach((a, i) => {
-      a.show();
-      a.update();
-    });
-
-    // show buttons
-    this.buttons.forEach((b, i) => {
-      b.show();
-      b.animate();
-    });
   }
 
   drawCountdown() {
-    let seconds = 3 - Math.floor(g.ticks / 30);
+    let seconds = 3 - Math.floor(g.ticks / 30); // 0.5 seconds
     let text_size = 96;
 
     if (seconds == 0) {
@@ -401,8 +432,14 @@ class Game {
 
     if (this.animations.length == 0) { // no animations, it's the first iteration of the menu
       for (let i = 0; i < 50; i++) {
+        let params = {
+          "type": "ball",
+          "duration": 20 * 60,
+          "seed": this.seed,
+        }
+
         this.animations.push(
-          new Animation("ball", 20 * 60, this.seed)
+          new Animation(params)
         );
       }
     }
@@ -438,18 +475,6 @@ class Game {
     text(winner_text, width/2, height/2, width, 200);
 
     pop();
-
-    // run animations
-    this.animations.forEach((a, i) => {
-      a.show();
-      a.update();
-    });
-
-    // show buttons
-    this.buttons.forEach((b, i) => {
-      b.show();
-      b.animate();
-    });
   }
 
   tick() {
@@ -537,116 +562,6 @@ class Player {
 
   resetScore() {
     this.score = 0;
-  }
-}
-
-class Animation {
-  constructor(type, duration, seed, color, x, y) {
-    this.type = type;
-    this.duration = duration;
-    this.seed = seed;
-
-    if (!x) {
-      this.position = createVector(random(width), random(height))
-    } else {
-      this.position = createVector(x, y);
-    }
-
-    if (!color) {
-      this.color = "#ffffff64"; // 255, 100
-    } else {
-      this.color = color;
-    }
-
-    if (type = "ball") {
-      this.z = random(0, 100);
-      this.size = map(this.z, 0, 100, width / 200, width / 100);
-      this.speed = map(this.z, 0, 100, 0.5, 5);
-      this.velocity = createVector(this.speed, 0).rotate(this.seed);
-    }
-  }
-
-  show() {
-    push();
-    if (this.type == "ball") {
-        translate(this.position.x, this.position.y);
-        noStroke();
-        fill(this.color);
-        circle(0, 0, this.size);
-    }
-    pop();
-  }
-
-  update() {
-    if (this.type == "ball") {
-      this.position.add(this.velocity);
-
-      if (this.position.x > width) this.position.x -= width;
-      else if (this.position.x < 0) this.position.x += width;
-
-      if (this.position.y > height) this.position.y -= height;
-      else if (this.position.y < 0) this.position.y += height;
-    }
-  }
-}
-
-
-class Button {
-  constructor(x, y, w, h, text_string, id, text_color, text_size, background_color, hover_color, active) {
-    this.position = createVector(x, y); // the position is relative to the center
-    this.bwidth = w;
-    this.bheight = h;
-    this.id = id;
-    this.text_string = " " + text_string;
-    this.text_color = text_color;
-    this.text_size = text_size;
-    this.background_color = background_color;
-    this.hover_color = hover_color;
-    this.active = active;
-
-    this.current_color = background_color;
-    this.inactive_color = "#808080";
-    this.pressed = false;
-  }
-
-  show() {
-    push();
-    translate(this.position.x, this.position.y);
-    noStroke();
-
-    if (this.active) {
-      fill(this.current_color);
-    } else {
-      fill(this.inactive_color);
-    }
-
-    rectMode(CENTER);
-    rect(0, 0, this.bwidth, this.bheight);
-
-    textSize(this.text_size);
-    textAlign(CENTER, CENTER);
-    textFont(font);
-    fill(this.text_color);
-    text(this.text_string, 0, 0, this.bwidth, this.bheight);
-    pop();
-  }
-
-  animate() {
-    if (!this.active) return;
-
-    if (mouseX > this.position.x - this.bwidth / 2 && mouseX < this.position.x + this.bwidth / 2 && mouseY > this.position.y - this.bheight / 2 && mouseY < this.position.y + this.bheight / 2) {
-      this.current_color = this.hover_color;
-    } else {
-      this.current_color = this.background_color;
-    }
-  }
-
-  checkClicks(x, y) {
-    if (!this.active) return;
-
-    if (x > this.position.x - this.bwidth / 2 && x < this.position.x + this.bwidth / 2 && y > this.position.y - this.bheight / 2 && y < this.position.y + this.bheight / 2) {
-      this.pressed = true;
-    }
   }
 }
 
